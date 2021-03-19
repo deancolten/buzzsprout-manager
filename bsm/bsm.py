@@ -43,8 +43,8 @@ class Manager():
             f"{self.base_url}/episodes.json", self.access_params)
         return test_response.ok
 
-    def get_all_episodes(self):
-        """Requests all episode objects from API and caches the response. Returns an Episode Group of all episodes."""
+    def update(self):
+        """Requests all episode objects from API and caches the response."""
 
         headers = self.cache_headers
         response = requests.get(
@@ -62,9 +62,17 @@ class Manager():
                     'If-Modified-Since': response.headers['Last-Modified']
                 }
                 self.cache_episodes = EpisodeGroup(*e_list)
+        else:
+            raise ConnectionError(f"Response {response.status_code}")
+
+    def get_all_episodes(self):
+        """Checks for update, and then returns all episodes in an Episode Group"""
+        self.update()
+        if self.cache_episodes:
             return self.cache_episodes
         else:
-            return response.ok
+            # ****** Some type of exception here???********
+            return None
 
     def get_episode_by_id(self, id):
         """Uses an episode id parameter to return a single Episode object"""
@@ -108,6 +116,7 @@ class Manager():
             data=payload,
             params=self.access_params
         )
+        self.update()
         return response.ok
 
     def set_episode_public(self, episode=None, id=None):
@@ -128,6 +137,7 @@ class Manager():
             data=payload,
             params=self.access_params
         )
+        self.update()
         return response.ok
 
     def delete_episode(self, episode=None, id=None):
@@ -146,12 +156,12 @@ class Manager():
             headers=headers,
             params=self.access_params
         )
+        self.update()
         return response
 
     def post_episode(self, episode, file_path=None):
         """Posts episode to Buzzsprout. If file_path is included, the file will be uploaded."""
 
-        # headers = {"Content-Type": "application/json"}
         payload = episode.get_existing_data()
         if file_path:
             files = [('audio_file', open(file_path, 'rb'))]
@@ -167,6 +177,7 @@ class Manager():
                 data=payload,
                 params=self.access_params
             )
+        self.update()
         return response
 
 
