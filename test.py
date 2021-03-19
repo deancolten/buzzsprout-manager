@@ -1,6 +1,7 @@
 from bsm import bsm
 from dotenv import load_dotenv
 import os
+from pprint import pprint
 
 load_dotenv()
 TOKEN = os.environ.get("TTOKEN")
@@ -8,4 +9,7 @@ ID = os.environ.get("TID")
 
 manager = bsm.Manager(ID, TOKEN)
 
-print(manager.test_api())
+episodes = manager.get_all_episodes()
+for i in episodes:
+    print(i.title)
+    print(i.duration)
