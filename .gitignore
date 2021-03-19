@@ -143,3 +143,6 @@ cython_debug/
 
 # VSCodea
 *.vscode
+
+# MISC
+notes.txt

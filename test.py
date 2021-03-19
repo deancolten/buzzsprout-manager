@@ -8,4 +8,6 @@ ID = os.environ.get("TID")
 
 manager = bsm.Manager(ID, TOKEN)
 
-print(manager.test_api())
+eps = manager.get_all_episodes()
+
+print(eps[0])
