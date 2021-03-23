@@ -10,6 +10,3 @@ ID = os.environ.get("TID")
 manager = bsm.Manager(ID, TOKEN)
 
 episodes = manager.get_all_episodes()
-for i in episodes:
-    print(i.title)
-    print(i.duration)

@@ -141,6 +141,11 @@ cython_debug/
 *.mp3
 *.wav
 
+# Image files
+*.png
+*.jpeg
+*.jpg
+
 # VSCodea
 *.vscode
 

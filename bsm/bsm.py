@@ -98,6 +98,74 @@ class Manager():
         else:
             return False
 
+    def update_episode(self, episode, **kwargs):
+        """Update episode information with given key value pairs."""
+
+        if type(episode) == Episode:
+            f_id = episode.id
+        elif id != None:
+            f_id = id
+        else:
+            raise Exception("Must provide an episode object or id")
+
+        headers = {"Content-Type": "application/json"}
+        payload = json.dumps(kwargs)
+        response = requests.put(
+            url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}.json",
+            headers=headers,
+            data=payload,
+            params=self.access_params
+        )
+        self.update()
+        return response.ok
+
+    def update_episode_audio(self, episode, file_path=None, public=False):
+        """
+        Updates episode's previous audio file. By default, this sets the episode to private. 
+        Set public to True to keep episode public after upload.
+        """
+
+        if type(episode) == Episode:
+            f_id = episode.id
+        elif id != None:
+            f_id = id
+        else:
+            raise Exception("Must provide an episode object or id")
+        payload = episode.get_existing_data()
+        files = [('audio_file', open(file_path, 'rb'))]
+        response = requests.put(
+            url=f"{self.base_url}/episodes/{f_id}.json",
+            data=payload,
+            params=self.access_params,
+            files=files
+        )
+        if public:
+            self.set_episode_public(id=f_id)
+        self.update()
+        return response
+
+    def update_episode_artwork(self, episode, file_path=None, public=False):
+        """Updates episode's previous artwork file."""
+
+        if type(episode) == Episode:
+            f_id = episode.id
+        elif id != None:
+            f_id = id
+        else:
+            raise Exception("Must provide an episode object or id")
+        payload = episode.get_existing_data()
+        files = [('artwork_file', open(file_path, 'rb'))]
+        response = requests.put(
+            url=f"{self.base_url}/episodes/{f_id}.json",
+            data=payload,
+            params=self.access_params,
+            files=files
+        )
+        if public:
+            self.set_episode_public(id=f_id)
+        self.update()
+        return response
+
     def set_episode_private(self, episode=None, id=None):
         """Set episode private attribute to True. Takes either an Episode object or episode id as an argument"""
 
@@ -140,31 +208,35 @@ class Manager():
         self.update()
         return response.ok
 
-    def delete_episode(self, episode=None, id=None):
-        """Delete Episode. Takes either an Episode object or episode id as an argument"""
+    # *****NOT WORKING******
+        # def delete_episode(self, episode=None, id=None):
+        #     """Delete Episode. Takes either an Episode object or episode id as an argument"""
 
-        if type(episode) == Episode:
-            f_id = episode.id
-        elif id != None:
-            f_id = id
-        else:
-            raise Exception("Must provide an episode object or id")
+        #     if type(episode) == Episode:
+        #         f_id = episode.id
+        #     elif id != None:
+        #         f_id = id
+        #     else:
+        #         raise Exception("Must provide an episode object or id")
 
-        headers = {"Content-Type": "application/json"}
-        response = requests.delete(
-            url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}.json",
-            headers=headers,
-            params=self.access_params
-        )
-        self.update()
-        return response
+        #     headers = {"Content-Type": "application/json"}
+        #     response = requests.get(
+        #         url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}.json",
+        #         headers=headers,
+        #         params=self.access_params
+        #     )
+        #     self.update()
+        #     return response
 
-    def post_episode(self, episode, file_path=None):
+    def post_episode(self, episode, audio_file_path=None, artwork_file_path=None):
         """Posts episode to Buzzsprout. If file_path is included, the file will be uploaded."""
-
+        files = []
+        if audio_file_path:
+            files.append(('audio_file', open(audio_file_path, 'rb')))
+        if artwork_file_path:
+            files.append(('artwork_file', open(artwork_file_path, 'rb')))
         payload = episode.get_existing_data()
-        if file_path:
-            files = [('audio_file', open(file_path, 'rb'))]
+        if files:
             response = requests.post(
                 url=f"{self.base_url}/episodes.json",
                 data=payload,
@@ -178,6 +250,7 @@ class Manager():
                 params=self.access_params
             )
         self.update()
+        self.set_episode_public(episode=episode)
         return response
 
 
