@@ -4,8 +4,8 @@ import os
 from pprint import pprint
 
 load_dotenv()
-TOKEN = os.environ.get("TTOKEN")
 ID = os.environ.get("TID")
+TOKEN = os.environ.get("TTOKEN")
 
 manager = bsm.Manager(ID, TOKEN)
 

@@ -1,15 +1,16 @@
 import json
 import requests
 from datetime import datetime
+from .functions import get_response_error
 
 
 class Manager():
     """Manages http requests and responses as well as authorization.
 
-   Attributes:
-        id(str): Podcast Id.
-        token(str): API Token.
-        name(str): Optional name.
+        Attributes:
+            id(str): Podcast Id.
+            token(str): API Token.
+            name(str): Optional name.
     """
 
     def __init__(self, id, token):
@@ -28,6 +29,7 @@ class Manager():
         self.access_params = {'api_token': self.token}
 
         self.cache_headers = None
+        self.cache_episodes = None
 
     def test_api(self):
         """Returns requests.response object for GET request to Buzzsprout API"""
@@ -63,7 +65,7 @@ class Manager():
                 }
                 self.cache_episodes = EpisodeGroup(*e_list)
         else:
-            raise ConnectionError(f"Response {response.status_code}")
+            get_response_error(response)
 
     def get_all_episodes(self):
         """Checks for update, and then returns all episodes in an Episode Group"""
@@ -88,15 +90,23 @@ class Manager():
         """Returns first episode that matches the given datetime object argument."""
 
         if type(date) != datetime:
-            raise TypeError("get_episode_by_date requires a datetime object")
-        e_group = self.get_all_episodes()
-        if e_group:
-            for e in e_group:
-                if e.get_date() == date:
-                    return e
-            return False
-        else:
-            return False
+            raise TypeError("argument date must be of type datetime.datetime")
+        self.update()
+        for e in self.cache_episodes:
+            if e.get_date() == date:
+                return e
+        return None
+
+    def get_episode_by_title(self, title):
+        """Returns first episode that matches given title."""
+
+        if not isinstance(title, str):
+            raise TypeError("argument 'title' must be of type str")
+        self.update()
+        for e in self.cache_episodes:
+            if getattr(e, 'title') == title:
+                return e
+        return None
 
     def update_episode(self, episode, **kwargs):
         """Update episode information with given key value pairs."""
@@ -208,25 +218,25 @@ class Manager():
         self.update()
         return response.ok
 
-    # *****NOT WORKING******
-        # def delete_episode(self, episode=None, id=None):
-        #     """Delete Episode. Takes either an Episode object or episode id as an argument"""
+# *****NOT WORKING******
+    # def delete_episode(self, episode=None, id=None):
+    #     """Delete Episode. Takes either an Episode object or episode id as an argument"""
 
-        #     if type(episode) == Episode:
-        #         f_id = episode.id
-        #     elif id != None:
-        #         f_id = id
-        #     else:
-        #         raise Exception("Must provide an episode object or id")
+    #     if type(episode) == Episode:
+    #         f_id = episode.id
+    #     elif id != None:
+    #         f_id = id
+    #     else:
+    #         raise Exception("Must provide an episode object or id")
 
-        #     headers = {"Content-Type": "application/json"}
-        #     response = requests.get(
-        #         url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}.json",
-        #         headers=headers,
-        #         params=self.access_params
-        #     )
-        #     self.update()
-        #     return response
+    #     headers = {"Content-Type": "application/json"}
+    #     response = requests.delete(
+    #         url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}",
+    #         # headers=headers,
+    #         params=self.access_params
+    #     )
+    #     self.update()
+    #     return response
 
     def post_episode(self, episode, audio_file_path=None, artwork_file_path=None):
         """Posts episode to Buzzsprout. If file_path is included, the file will be uploaded."""
@@ -268,8 +278,8 @@ class EpisodeGroup():
         for elem in self.content:
             yield elem
 
-    # def __repr__(self):
-    #     return str(self.content)
+    def __repr__(self):
+        return str(self.content)
 
     def __getitem__(self, episode):
         return self.content[episode]
