@@ -1,12 +1,12 @@
-from bsm import bsm
+from bsm import Manager, Episode, EpisodeGroup
 from dotenv import load_dotenv
 import os
 from pprint import pprint
 
 load_dotenv()
-ID = os.environ.get("TID")
-TOKEN = os.environ.get("TTOKEN")
+ID = os.environ.get("ID")
+TOKEN = os.environ.get("TOKEN")
 
-manager = bsm.Manager(ID, TOKEN)
+manager = Manager(ID, TOKEN)
 
-episodes = manager.get_all_episodes()
+print(manager.test_api())

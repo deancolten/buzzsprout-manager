@@ -1,5 +1,6 @@
 import json
 import requests
+from requests_toolbelt import MultipartEncoder
 from datetime import datetime
 from .functions import get_response_error
 
@@ -15,7 +16,7 @@ class Manager():
 
     def __init__(self, id, token):
         """
-       Constructor
+        Constructor
 
         Parameters:
             id(str): Podcast Id.
@@ -45,8 +46,8 @@ class Manager():
             f"{self.base_url}/episodes.json", self.access_params)
         return test_response.ok
 
-    def update(self):
-        """Requests all episode objects from API and caches the response."""
+    def _update(self):
+        """Requests all episode objects from API and caches the response if response isn't '304 Not Modified'"""
 
         headers = self.cache_headers
         response = requests.get(
@@ -64,12 +65,13 @@ class Manager():
                     'If-Modified-Since': response.headers['Last-Modified']
                 }
                 self.cache_episodes = EpisodeGroup(*e_list)
+            return response.status_code
         else:
             get_response_error(response)
 
     def get_all_episodes(self):
-        """Checks for update, and then returns all episodes in an Episode Group"""
-        self.update()
+        """Checks for update, and then returns all episodes in an Episode Group object"""
+        self._update()
         if self.cache_episodes:
             return self.cache_episodes
         else:
@@ -77,39 +79,59 @@ class Manager():
             return None
 
     def get_episode_by_id(self, id):
-        """Uses an episode id parameter to return a single Episode object"""
+        """
+        Uses an episode id parameter to return a single Episode object
 
+        Parameters:
+            id(str): Episode ID
+        """
         response = requests.get(
             f"{self.base_url}/episodes/{id}.json", self.access_params)
         if response.ok:
             return Episode(**response.json())
         else:
-            return False
+            return None
 
     def get_episode_by_date(self, date):
-        """Returns first episode that matches the given datetime object argument."""
+        """
+        Returns first episode that matches the given datetime object argument.
+
+        Parameters:
+            date(datetime.datetime): datetime object 
+        """
 
         if type(date) != datetime:
             raise TypeError("argument date must be of type datetime.datetime")
-        self.update()
+        self._update()
         for e in self.cache_episodes:
             if e.get_date() == date:
                 return e
         return None
 
     def get_episode_by_title(self, title):
-        """Returns first episode that matches given title."""
+        """
+        Returns first episode that matches given title.
+
+        Parameters:
+            title(str): Episode Title
+        """
 
         if not isinstance(title, str):
             raise TypeError("argument 'title' must be of type str")
-        self.update()
+        self._update()
         for e in self.cache_episodes:
             if getattr(e, 'title') == title:
                 return e
         return None
 
     def update_episode(self, episode, **kwargs):
-        """Update episode information with given key value pairs."""
+        """
+        Update episode information with given key value pairs.
+
+        Parameters:
+            episode(bsm.Episode): Episode to update
+            **kwargs: Attributes to update
+        """
 
         if type(episode) == Episode:
             f_id = episode.id
@@ -121,18 +143,23 @@ class Manager():
         headers = {"Content-Type": "application/json"}
         payload = json.dumps(kwargs)
         response = requests.put(
-            url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}.json",
+            url=f"{self.base_url}/episodes/{f_id}.json",
             headers=headers,
             data=payload,
             params=self.access_params
         )
-        self.update()
-        return response.ok
+        self._update()
+        return BSMResponse(response)
 
     def update_episode_audio(self, episode, file_path=None, public=False):
         """
-        Updates episode's previous audio file. By default, this sets the episode to private. 
+        Updates episode's previous audio file. By default, this sets the episode to private.
         Set public to True to keep episode public after upload.
+
+        Parameters:
+            episode(bsm.Episode): Episode to update
+            file_path(str): relative or full audio file path 
+            public(bool): set episode public
         """
 
         if type(episode) == Episode:
@@ -151,11 +178,18 @@ class Manager():
         )
         if public:
             self.set_episode_public(id=f_id)
-        self.update()
-        return response
+        self._update()
+        return BSMResponse(response)
 
     def update_episode_artwork(self, episode, file_path=None, public=False):
-        """Updates episode's previous artwork file."""
+        """
+        Updates episode's previous artwork file.
+
+        Parameters:
+            episode(bsm.Episode): Episode to update
+            file_path(str): relative or full artwork file path 
+            public(bool): set episode public
+        """
 
         if type(episode) == Episode:
             f_id = episode.id
@@ -173,11 +207,17 @@ class Manager():
         )
         if public:
             self.set_episode_public(id=f_id)
-        self.update()
-        return response
+        self._update()
+        return BSMResponse(response)
 
     def set_episode_private(self, episode=None, id=None):
-        """Set episode private attribute to True. Takes either an Episode object or episode id as an argument"""
+        """
+        Set episode private attribute to True. Takes either an Episode object or episode id as an argument
+
+        Parameters:
+            episode(bsm.Episode): Episode to update
+            id(str): ID of episode to update 
+        """
 
         if type(episode) == Episode:
             f_id = episode.id
@@ -189,16 +229,22 @@ class Manager():
         headers = {"Content-Type": "application/json"}
         payload = json.dumps({'private': "true"})
         response = requests.put(
-            url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}.json",
+            url=f"{self.base_url}/episodes/{f_id}.json",
             headers=headers,
             data=payload,
             params=self.access_params
         )
-        self.update()
-        return response.ok
+        self._update()
+        return BSMResponse(response)
 
     def set_episode_public(self, episode=None, id=None):
-        """Set episode private attribute to False. Takes either an Episode object or episode id as an argument"""
+        """
+        Set episode private attribute to False. Takes either an Episode object or episode id as an argument
+
+        Parameters:
+            episode(bsm.Episode): Episode to update
+            id(str): ID of episode to update
+        """
 
         if type(episode) == Episode:
             f_id = episode.id
@@ -210,15 +256,55 @@ class Manager():
         headers = {"Content-Type": "application/json"}
         payload = json.dumps({'private': "false"})
         response = requests.put(
-            url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}.json",
+            url=f"{self.base_url}/episodes/{f_id}.json",
             headers=headers,
             data=payload,
             params=self.access_params
         )
-        self.update()
-        return response.ok
+        self._update()
+        return BSMResponse(response)
 
-# *****NOT WORKING******
+    def post_episode(self, episode=None, audio_file=None, artwork_file=None, **kwargs):
+        """
+        Posts episode to Buzzsprout. Audio or artwork file paths can be given, as well as additional kwargs
+
+        Parameters:
+            episode(bsm.Episode): Episode object to post
+            audio_file(str): Path to audio file
+            artwork_file(str): Path to artwork file
+            **kwargs: optional additional episode attributes
+        """
+        encode_data = {}
+        if episode:
+            epD = episode.get_existing_data()
+            for i in epD.keys():
+                encode_data[i] = str(epD[i])
+
+        if audio_file:
+            encode_data['audio_file'] = ('audio_file', open(audio_file, 'rb'))
+            encode_data.pop('audio_url', None)
+
+        if artwork_file:
+            encode_data['artwork_file'] = (
+                'artwork_file', open(artwork_file, 'rb'))
+            encode_data.pop('artwork_url', None)
+
+        encode_data.update(**kwargs)
+        # Title has to be given to avoid a bad-request error
+        if not 'title' in encode_data.keys():
+            raise ValueError(
+                "post_episode() requires a 'title' attribute. This can be an attribute of episode argument or given as a kwarg")
+
+        encoder = MultipartEncoder(encode_data)
+        response = requests.post(
+            f"{self.base_url}/episodes.json",
+            data=encoder,
+            headers={'Content-Type': encoder.content_type},
+            params=self.access_params
+        )
+        return BSMResponse(response)
+
+# *****NOT WORKING******Seems to be a lack on server-side functionality
     # def delete_episode(self, episode=None, id=None):
     #     """Delete Episode. Takes either an Episode object or episode id as an argument"""
 
@@ -231,43 +317,26 @@ class Manager():
 
     #     headers = {"Content-Type": "application/json"}
     #     response = requests.delete(
-    #         url=f"https://www.buzzsprout.com/api/{self.id}/episodes/{f_id}",
+    #         url=f"{self.base_url}/episodes/{f_id}",
     #         # headers=headers,
     #         params=self.access_params
     #     )
-    #     self.update()
+    #     self._update()
     #     return response
 
-    def post_episode(self, episode, audio_file_path=None, artwork_file_path=None):
-        """Posts episode to Buzzsprout. If file_path is included, the file will be uploaded."""
-        files = []
-        if audio_file_path:
-            files.append(('audio_file', open(audio_file_path, 'rb')))
-        if artwork_file_path:
-            files.append(('artwork_file', open(artwork_file_path, 'rb')))
-        payload = episode.get_existing_data()
-        if files:
-            response = requests.post(
-                url=f"{self.base_url}/episodes.json",
-                data=payload,
-                params=self.access_params,
-                files=files
-            )
-        else:
-            response = requests.post(
-                url=f"{self.base_url}/episodes.json",
-                data=payload,
-                params=self.access_params
-            )
-        self.update()
-        self.set_episode_public(episode=episode)
-        return response
+# **********************************************************************
 
 
 class EpisodeGroup():
     """Class for managing groups of Episode objects."""
 
     def __init__(self, *args):
+        """
+       Constructor
+
+        Parameters:
+            *args: Episodes
+        """
         for i in args:
             if type(i) != Episode:
                 raise TypeError(
@@ -294,8 +363,8 @@ class EpisodeGroup():
     def remove(self, index):
         self.content.pop(index)
 
-    def pop(self, index=None):
-        self.content.pop(index=index)
+    def pop(self, index=-1):
+        return self.content.pop(index)
 
     def num_episodes(self):
         t = 0
@@ -329,6 +398,7 @@ class Episode():
         'id',
         'title',
         'audio_url',
+        'artwork_url',
         'description',
         'summary',
         'artist',
@@ -347,9 +417,16 @@ class Episode():
     ]
 
     def __init__(self, **kwargs):
+        """
+       Constructor
+
+        Parameters:
+            **kwargs: Episode Attributes
+        """
         self.id = kwargs.get('id')
         self.title = kwargs.get('title')
         self.audio_url = kwargs.get('audio_url')
+        self.artwork_url = kwargs.get('artwork_url')
         self.description = kwargs.get('description')
         self.summary = kwargs.get('summary')
         self.artist = kwargs.get('artist')
@@ -398,6 +475,47 @@ class Episode():
             all_data[i] = x
 
         return all_data
+
+
+class BSMResponse(Episode):
+    """
+    Custom response class for post and put request responses. 
+    Similar to bsm.Episode object, but contains response data and methods
+
+    """
+
+    def __init__(self, response):
+        self.resonse = response
+
+        self.json = response.json()
+
+        self.id = self.json.get('id')
+        self.title = self.json.get('title')
+        self.audio_url = self.json.get('audio_url')
+        self.description = self.json.get('description')
+        self.summary = self.json.get('summary')
+        self.artist = self.json.get('artist')
+        self.tags = self.json.get('tags')
+        self.published_at = self.json.get('published_at')
+        self.duration = self.json.get('duration')
+        self.hq = self.json.get('hq')
+        self.magic_mastering = self.json.get('magic_mastering')
+        self.guid = self.json.get('guid')
+        self.inactive_at = self.json.get('inactive_at')
+        self.episode_number = self.json.get('episode_number')
+        self.season_number = self.json.get('season_number')
+        self.explicit = self.json.get('explicit')
+        self.private = self.json.get('private')
+        self.total_plays = self.json.get('total_plays')
+
+        self.status_code = response.status_code
+        self.ok = response.ok
+
+    def __bool__(self):
+        return self.ok
+
+    def __repr__(self):
+        return(f"BSMResponse Object - ID:{self.id} - Response {self.status_code}")
 
 
 if __name__ == "__main__":
