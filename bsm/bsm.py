@@ -2,7 +2,7 @@ import json
 import requests
 from requests_toolbelt import MultipartEncoder
 from datetime import datetime
-from .functions import get_response_error
+from .functions import get_response_error, strip_html_tags
 
 
 class Manager():
@@ -455,6 +455,14 @@ class Episode():
             return(dt_object)
         except:
             raise AttributeError("Episode has no published_at attribute")
+
+    def get_description_text(self):
+        """Returns episode description with HTML formatting removed"""
+        d = getattr(self, 'description')
+        if d:
+            return(strip_html_tags(d))
+        else:
+            return None
 
     def get_existing_data(self):
         """Returns dict of episode attributes that != None"""
