@@ -2,7 +2,7 @@ import json
 import requests
 from requests_toolbelt import MultipartEncoder
 from datetime import datetime
-from .functions import get_response_error, strip_html_tags
+from .functions import get_response_error, strip_html_tags, convert_to_id
 
 
 class Manager():
@@ -49,7 +49,12 @@ class Manager():
     def _update(self):
         """Requests all episode objects from API and caches the response if response isn't '304 Not Modified'"""
 
-        headers = self.cache_headers
+        # This catches an issue where a Manager is provided a header cache, but doesn't contain any episode cache
+        if self.cache_episodes != None:
+            headers = self.cache_headers
+        else:
+            headers = ""
+        # -------------------------------------------------------------------------------------------------------
         response = requests.get(
             url=f"{self.base_url}/episodes.json",
             headers=headers,
@@ -124,21 +129,25 @@ class Manager():
                 return e
         return None
 
+# *******************************FIX FIX FIX***************************************
+# *******************************FIX FIX FIX***************************************
+# *******************************FIX FIX FIX***************************************
+# *******************************FIX FIX FIX***************************************
+# *******************************FIX FIX FIX***************************************
+# *******************************FIX FIX FIX***************************************
+# *******************************FIX FIX FIX***************************************
+# *******************************FIX FIX FIX***************************************
+# *******************************FIX FIX FIX***************************************
     def update_episode(self, episode, **kwargs):
         """
         Update episode information with given key value pairs.
 
         Parameters:
-            episode(bsm.Episode): Episode to update
+            episode(bsm.Episode) or (str/int): Episode (or Ep ID) to update
             **kwargs: Attributes to update
         """
 
-        if type(episode) == Episode:
-            f_id = episode.id
-        elif id != None:
-            f_id = id
-        else:
-            raise Exception("Must provide an episode object or id")
+        f_id = convert_to_id(episode)
 
         headers = {"Content-Type": "application/json"}
         payload = json.dumps(kwargs)
@@ -162,12 +171,8 @@ class Manager():
             public(bool): set episode public
         """
 
-        if type(episode) == Episode:
-            f_id = episode.id
-        elif id != None:
-            f_id = id
-        else:
-            raise Exception("Must provide an episode object or id")
+        f_id = convert_to_id(episode)
+
         payload = episode.get_existing_data()
         files = [('audio_file', open(file_path, 'rb'))]
         response = requests.put(
@@ -191,12 +196,8 @@ class Manager():
             public(bool): set episode public
         """
 
-        if type(episode) == Episode:
-            f_id = episode.id
-        elif id != None:
-            f_id = id
-        else:
-            raise Exception("Must provide an episode object or id")
+        f_id = convert_to_id(episode)
+
         payload = episode.get_existing_data()
         files = [('artwork_file', open(file_path, 'rb'))]
         response = requests.put(
@@ -210,7 +211,7 @@ class Manager():
         self._update()
         return BSMResponse(response)
 
-    def set_episode_private(self, episode=None, id=None):
+    def set_episode_private(self, episode):
         """
         Set episode private attribute to True. Takes either an Episode object or episode id as an argument
 
@@ -219,12 +220,7 @@ class Manager():
             id(str): ID of episode to update 
         """
 
-        if type(episode) == Episode:
-            f_id = episode.id
-        elif id != None:
-            f_id = id
-        else:
-            raise Exception("Must provide an episode object or id")
+        f_id = convert_to_id(episode)
 
         headers = {"Content-Type": "application/json"}
         payload = json.dumps({'private': "true"})
@@ -237,7 +233,7 @@ class Manager():
         self._update()
         return BSMResponse(response)
 
-    def set_episode_public(self, episode=None, id=None):
+    def set_episode_public(self, episode):
         """
         Set episode private attribute to False. Takes either an Episode object or episode id as an argument
 
@@ -246,12 +242,7 @@ class Manager():
             id(str): ID of episode to update
         """
 
-        if type(episode) == Episode:
-            f_id = episode.id
-        elif id != None:
-            f_id = id
-        else:
-            raise Exception("Must provide an episode object or id")
+        f_id = convert_to_id(episode)
 
         headers = {"Content-Type": "application/json"}
         payload = json.dumps({'private': "false"})
@@ -493,37 +484,42 @@ class BSMResponse(Episode):
     """
 
     def __init__(self, response):
-        self.resonse = response
-
-        self.json = response.json()
-
-        self.id = self.json.get('id')
-        self.title = self.json.get('title')
-        self.audio_url = self.json.get('audio_url')
-        self.description = self.json.get('description')
-        self.summary = self.json.get('summary')
-        self.artist = self.json.get('artist')
-        self.tags = self.json.get('tags')
-        self.published_at = self.json.get('published_at')
-        self.duration = self.json.get('duration')
-        self.hq = self.json.get('hq')
-        self.magic_mastering = self.json.get('magic_mastering')
-        self.guid = self.json.get('guid')
-        self.inactive_at = self.json.get('inactive_at')
-        self.episode_number = self.json.get('episode_number')
-        self.season_number = self.json.get('season_number')
-        self.explicit = self.json.get('explicit')
-        self.private = self.json.get('private')
-        self.total_plays = self.json.get('total_plays')
-
-        self.status_code = response.status_code
+        self.response = response
         self.ok = response.ok
+        self.status_code = response.status_code
+
+        if self.ok:
+            self.json = response.json()
+
+            self.id = self.json.get('id')
+            self.title = self.json.get('title')
+            self.audio_url = self.json.get('audio_url')
+            self.description = self.json.get('description')
+            self.summary = self.json.get('summary')
+            self.artist = self.json.get('artist')
+            self.tags = self.json.get('tags')
+            self.published_at = self.json.get('published_at')
+            self.duration = self.json.get('duration')
+            self.hq = self.json.get('hq')
+            self.magic_mastering = self.json.get('magic_mastering')
+            self.guid = self.json.get('guid')
+            self.inactive_at = self.json.get('inactive_at')
+            self.episode_number = self.json.get('episode_number')
+            self.season_number = self.json.get('season_number')
+            self.explicit = self.json.get('explicit')
+            self.private = self.json.get('private')
+            self.total_plays = self.json.get('total_plays')
+        else:
+            self.json = None
 
     def __bool__(self):
         return self.ok
 
     def __repr__(self):
-        return(f"BSMResponse Object - ID:{self.id} - Response {self.status_code}")
+        if self.ok:
+            return(f"BSMResponse Object - ID:{self.id} - Response {self.status_code}")
+        else:
+            return(f"BSMResponse Object - Response {self.status_code}")
 
 
 if __name__ == "__main__":

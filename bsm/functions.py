@@ -1,5 +1,6 @@
 import requests
 from .exceptions import ClientError, ServerError
+import bsm.bsm
 
 
 def get_response_error(response):
@@ -25,3 +26,21 @@ def strip_html_tags(i_string):
     for s in breaks:
         i_string = i_string.replace(s, '\n')
     return i_string
+
+
+def convert_to_id(e_input):
+    """Takes any input. If input is bsm.Episode, numeric str, or int, returns (str) episode ID"""
+
+    if type(e_input) == bsm.Episode:
+        ret_value = e_input.id
+
+    elif isinstance(e_input, int):
+        ret_value = str(e_input)
+
+    elif isinstance(e_input, str) and e_input.isnumeric():
+        ret_value = e_input
+    else:
+        raise TypeError(
+            f"Must provide an episode object or id, either str or int.")
+
+    return ret_value

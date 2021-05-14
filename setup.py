@@ -1,7 +1,7 @@
 import setuptools
 from pathlib import Path
 
-VERSION = "0.0.1"
+VERSION = "0.0.3"
 
 setuptools.setup(
     name="buzzsprout-manager",
