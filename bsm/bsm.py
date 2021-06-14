@@ -272,7 +272,7 @@ class Manager():
                 encode_data[i] = str(epD[i])
 
         if audio_file:
-            encode_data['audio_file'] = ('audio_file', open(audio_file, 'rb'))
+            encode_data['audio_file'] = (audio_file, open(audio_file, 'rb'))
             encode_data.pop('audio_url', None)
 
         if artwork_file:
